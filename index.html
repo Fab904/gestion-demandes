@@ -32,11 +32,32 @@
             color: white;
             padding: 30px;
             text-align: center;
+            position: relative;
         }
 
         .header h1 {
             font-size: 2.5em;
             margin-bottom: 10px;
+        }
+
+        .btn-print {
+            position: absolute;
+            right: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            padding: 12px 24px;
+            background: white;
+            color: #667eea;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-print:hover {
+            background: #f0f0f0;
+            transform: translateY(-50%) scale(1.05);
         }
 
         .main-content {
@@ -184,6 +205,11 @@
             animation: pulse 1.5s infinite;
         }
 
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
         .gyrophare {
             font-size: 1.5em;
             margin-left: 10px;
@@ -193,11 +219,6 @@
         @keyframes rotate {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
-        }
-
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
         }
 
         .demande-info {
@@ -219,6 +240,10 @@
         .info-value {
             color: #333;
             margin-top: 3px;
+        }
+
+        .info-value.bold {
+            font-weight: 700;
         }
 
         .demande-notes {
@@ -348,15 +373,6 @@
             background: #5568d3;
         }
 
-        .modal-btn-secondary {
-            background: #e0e0e0;
-            color: #333;
-        }
-
-        .modal-btn-secondary:hover {
-            background: #d0d0d0;
-        }
-
         .empty-state {
             text-align: center;
             padding: 60px 20px;
@@ -368,14 +384,40 @@
             margin-bottom: 20px;
         }
 
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+            }
+            .header .btn-print,
+            .form-section,
+            .demande-actions,
+            .main-content {
+                display: none;
+            }
+            .list-section {
+                max-height: none;
+                overflow: visible;
+            }
+        }
+
         @media (max-width: 1024px) {
             .main-content {
                 grid-template-columns: 1fr;
             }
-
             .form-section {
                 border-right: none;
                 border-bottom: 2px solid #e0e0e0;
+            }
+            .btn-print {
+                position: static;
+                transform: none;
+                margin-top: 15px;
+                display: block;
+                width: auto;
             }
         }
     </style>
@@ -385,22 +427,12 @@
         <div class="header">
             <h1>📋 Gestion des Demandes</h1>
             <p>Système de suivi et d'alertes automatiques</p>
+            <button class="btn-print" onclick="imprimerListe()">🖨️ Imprimer la liste</button>
         </div>
 
         <div class="main-content">
             <div class="form-section">
                 <h2>Nouvelle Demande</h2>
-                
-                <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
-                    <strong style="color: #856404;">🧪 Test Notifications</strong><br>
-                    <button type="button" onclick="testNotificationWindows()" style="margin-top: 10px; padding: 10px; background: #ffc107; border: none; border-radius: 6px; cursor: pointer; width: 100%; font-weight: 600;">
-                        🔔 Tester notification Windows
-                    </button>
-                    <small style="color: #856404; display: block; margin-top: 5px;">
-                        Cliquez pour voir si les notifications Windows fonctionnent
-                    </small>
-                </div>
-
                 <form id="demandeForm" onsubmit="return handleFormSubmit(event)">
                     <div class="form-group">
                         <label for="projet">Projet</label>
@@ -471,300 +503,63 @@
     </div>
 
     <script>
-        // Données stockées localement
+        // ==================== DONNÉES ====================
         let demandes = JSON.parse(localStorage.getItem('demandes')) || [];
         let destinataires = JSON.parse(localStorage.getItem('destinataires')) || [];
         let editingId = null;
 
-        // VIDER LES DONNÉES AU PREMIER CHARGEMENT (à supprimer après le premier test)
-        // localStorage.removeItem('demandes');
-        // localStorage.removeItem('destinataires');
-        // localStorage.removeItem('notificationsEnvoyees');
-        // localStorage.removeItem('lastAlertCheck');
-
-        // Initialisation
+        // ==================== INITIALISATION ====================
         updateQuiSelect();
+        demanderPermissionNotifications();
 
-        // Demander la permission pour les notifications AVEC INSISTANCE
+        // ==================== PERMISSIONS NOTIFICATIONS ====================
         async function demanderPermissionNotifications() {
-            if ('Notification' in window) {
-                console.log('🔔 Demande de permission...');
-                console.log('Permission avant:', Notification.permission);
-                
-                if (Notification.permission === 'default') {
-                    try {
-                        // FORCER la demande avec un délai
+            if ('Notification' in window && Notification.permission === 'default') {
+                setTimeout(async () => {
+                    if (confirm('🔔 Cette application envoie des notifications Windows pour vos alertes.\n\nVoulez-vous activer les notifications ?')) {
                         const permission = await Notification.requestPermission();
-                        console.log('Permission après:', permission);
-                        
                         if (permission === 'granted') {
-                            console.log('✅ Permission accordée !');
-                            // Notification de test SIMPLE
-                            try {
-                                const testNotif = new Notification('✅ Notifications activées !', {
-                                    body: 'Les alertes Windows fonctionnent maintenant.',
-                                    requireInteraction: false,
-                                    silent: false
-                                });
-                                console.log('✅ Notification de test envoyée');
-                            } catch (e) {
-                                console.error('❌ Erreur notification test:', e);
-                            }
-                        } else {
-                            console.error('❌ Permission refusée');
-                            alert('⚠️ Vous devez AUTORISER les notifications !\n\nSans cela, vous ne recevrez PAS d\'alertes Windows.\n\nSi la popup ne s\'affiche pas :\n1. Utilisez Firefox au lieu d\'Edge\n2. OU hébergez le fichier sur un serveur web');
+                            new Notification('✅ Notifications activées', {
+                                body: 'Vous recevrez des alertes pour vos demandes.',
+                                requireInteraction: false
+                            });
                         }
-                        return permission === 'granted';
-                    } catch (error) {
-                        console.error('❌ Erreur lors de la demande:', error);
-                        alert('⚠️ Edge bloque la demande de permission pour les fichiers locaux.\n\nSOLUTIONS :\n1. Utilisez FIREFOX (recommandé)\n2. OU je vous fournis une version hébergée en ligne');
-                        return false;
-                    }
-                } else if (Notification.permission === 'denied') {
-                    console.error('❌ Notifications bloquées');
-                    alert('⚠️ Les notifications sont BLOQUÉES !\n\nDans Edge, les fichiers file:/// ne peuvent pas demander de permission.\n\n✅ SOLUTION : Utilisez FIREFOX');
-                    return false;
-                } else {
-                    console.log('✅ Permission déjà accordée');
-                    return true;
-                }
-            } else {
-                alert('❌ Navigateur non supporté');
-                return false;
-            }
-        }
-
-        // DEMANDER LA PERMISSION AU CHARGEMENT
-        if ('Notification' in window) {
-            console.log('📍 Initialisation notifications...');
-            console.log('Permission initiale:', Notification.permission);
-            
-            if (Notification.permission === 'default') {
-                // Afficher un message pour que l'utilisateur clique
-                setTimeout(() => {
-                    if (confirm('🔔 Cette application a besoin de votre autorisation pour envoyer des notifications Windows.\n\nVoulez-vous activer les notifications maintenant ?')) {
-                        demanderPermissionNotifications();
-                    } else {
-                        alert('⚠️ Sans notifications, vous ne serez pas alerté automatiquement.\n\nVous pouvez les activer plus tard en cliquant sur le bouton jaune.');
                     }
                 }, 1000);
-            } else if (Notification.permission === 'denied') {
-                setTimeout(() => {
-                    alert('⚠️ PROBLÈME : Edge bloque les notifications pour les fichiers file:///\n\n✅ SOLUTION SIMPLE :\nUtilisez FIREFOX au lieu d\'Edge.\n\nFirefox autorise les notifications pour les fichiers locaux.');
-                }, 1000);
-            }
-        } else {
-            alert('❌ Votre navigateur ne supporte pas les notifications.');
-        }
-
-        // Système de suivi des notifications envoyées
-        function getNotificationsEnvoyees() {
-            const stored = localStorage.getItem('notificationsEnvoyees');
-            if (!stored) return {};
-            
-            const data = JSON.parse(stored);
-            const today = new Date().toDateString();
-            
-            // Si la date stockée n'est pas aujourd'hui, réinitialiser
-            if (data.date !== today) {
-                return {};
-            }
-            
-            return data.notifications || {};
-        }
-
-        function saveNotificationEnvoyee(demandeId, type) {
-            const today = new Date().toDateString();
-            const notifications = getNotificationsEnvoyees();
-            
-            if (!notifications[demandeId]) {
-                notifications[demandeId] = [];
-            }
-            
-            if (!notifications[demandeId].includes(type)) {
-                notifications[demandeId].push(type);
-            }
-            
-            localStorage.setItem('notificationsEnvoyees', JSON.stringify({
-                date: today,
-                notifications: notifications
-            }));
-        }
-
-        function dejaEnvoyee(demandeId, type) {
-            const notifications = getNotificationsEnvoyees();
-            return notifications[demandeId] && notifications[demandeId].includes(type);
-        }
-
-        // Vérifier toutes les alertes et envoyer les notifications
-        function verifierEtEnvoyerAlertes() {
-            demandes.forEach(demande => {
-                const alerte = checkAlerteForDemande(demande);
-                
-                if (alerte && !dejaEnvoyee(alerte.demandeId, alerte.type)) {
-                    // Envoyer l'alerte
-                    showAlert(alerte.titre, alerte.message, alerte.projet, alerte.qui);
-                    
-                    // Marquer comme envoyée
-                    saveNotificationEnvoyee(alerte.demandeId, alerte.type);
-                }
-            });
-        }
-
-        // Calculer le temps jusqu'à 9h00 du matin
-        function getMillisecondsUntil9AM() {
-            const now = new Date();
-            const next9AM = new Date();
-            next9AM.setHours(9, 0, 0, 0);
-            
-            // Si on est déjà passé 9h aujourd'hui, programmer pour demain 9h
-            if (now >= next9AM) {
-                next9AM.setDate(next9AM.getDate() + 1);
-            }
-            
-            return next9AM - now;
-        }
-
-        // Programmer la vérification quotidienne à 9h
-        function programmerVerificationQuotidienne() {
-            const delai = getMillisecondsUntil9AM();
-            
-            setTimeout(() => {
-                verifierEtEnvoyerAlertes();
-                
-                // Re-programmer pour le lendemain
-                setInterval(() => {
-                    verifierEtEnvoyerAlertes();
-                }, 24 * 60 * 60 * 1000); // Toutes les 24h
-                
-            }, delai);
-        }
-
-        // Vérifier immédiatement à l'ouverture SI on n'a pas déjà vérifié aujourd'hui
-        function verificationInitiale() {
-            const lastCheck = localStorage.getItem('lastAlertCheck');
-            const today = new Date().toDateString();
-            
-            if (lastCheck !== today) {
-                verifierEtEnvoyerAlertes();
-                localStorage.setItem('lastAlertCheck', today);
             }
         }
 
-        // Lancer le système de vérification
-        verificationInitiale();
-        programmerVerificationQuotidienne();
-
-        // FONCTION DE TEST DES NOTIFICATIONS WINDOWS
-        async function testNotificationWindows() {
-            console.log('🧪 Test de notification lancé...');
-            console.log('Permission actuelle:', Notification.permission);
-            
-            if ('Notification' in window) {
-                if (Notification.permission === 'granted') {
-                    try {
-                        console.log('✅ Permission accordée, envoi de la notification...');
-                        
-                        const notif = new Notification('🧪 Test - Notification Windows', {
-                            body: 'Si vous voyez ceci EN BAS À DROITE de votre écran (pas dans Edge), ça fonctionne !',
-                            // PAS d'icône pour éviter l'erreur SVG
-                            requireInteraction: true,
-                            silent: false,
-                            tag: 'test-' + Date.now(),
-                            timestamp: Date.now()
-                        });
-                        
-                        notif.onclick = function() {
-                            alert('✅ Notification Windows cliquée !\n\nSi cette alerte apparaît après avoir cliqué sur la notification EN DEHORS du navigateur, tout fonctionne parfaitement !');
-                            window.focus();
-                            this.close();
-                        };
-                        
-                        console.log('✅ Notification créée avec succès');
-                        alert('✅ Notification de test envoyée !\n\nRegardez EN BAS À DROITE de votre écran Windows (pas dans Edge).\n\nSi vous ne la voyez pas :\n- Ouvrez le Centre de notifications Windows (Win + A)\n- Vérifiez la Console (F12) pour les erreurs');
-                        
-                    } catch (error) {
-                        console.error('❌ Erreur:', error);
-                        alert('❌ Erreur lors de la création de la notification :\n\n' + error.message + '\n\nOuvrez la Console (F12) pour plus de détails.');
-                    }
-                } else if (Notification.permission === 'denied') {
-                    alert('❌ Les notifications sont BLOQUÉES !\n\nDans Edge :\n1. Cliquez sur 🔒 dans la barre d\'adresse\n2. Cherchez "Notifications"\n3. Sélectionnez "Autoriser"\n4. Rechargez la page (F5)');
-                } else {
-                    console.log('⚠️ Permission non accordée, demande...');
-                    const permission = await Notification.requestPermission();
-                    console.log('Nouvelle permission:', permission);
-                    
-                    if (permission === 'granted') {
-                        testNotificationWindows(); // Réessayer
-                    } else {
-                        alert('❌ Vous avez refusé les notifications.\n\nPour les activer :\n1. Rechargez la page (F5)\n2. Cliquez "Autoriser" quand demandé');
-                    }
-                }
-            } else {
-                alert('❌ Votre navigateur ne supporte pas les notifications.');
-            }
-        }
-
-        // Obtenir l'année en cours sur 2 chiffres
+        // ==================== GESTION DES DATES ====================
         function getCurrentYear() {
             return new Date().getFullYear().toString().substring(2);
         }
 
-        // Normaliser la date : ajouter les zéros et l'année si nécessaire
         function normalizeDate(input) {
             if (!input) return '';
-            
             let parts = input.split('/');
             if (parts.length === 0) return '';
             
-            // Normaliser jour
             let jour = parts[0] ? parts[0].trim() : '';
             if (jour && jour.length === 1) jour = '0' + jour;
             
-            // Normaliser mois
             let mois = parts[1] ? parts[1].trim() : '';
             if (mois && mois.length === 1) mois = '0' + mois;
             
-            // Normaliser année
             let annee = parts[2] ? parts[2].trim() : getCurrentYear();
             if (annee.length === 1) annee = '0' + annee;
             
-            // Retourner la date normalisée
             if (jour && mois) {
                 return `${jour}/${mois}/${annee}`;
             }
             return input;
         }
 
-        // Ajouter des écouteurs sur les champs de date pour auto-complétion
         ['dateDemande', 'dateDemandee', 'dateValidee'].forEach(fieldId => {
-            const field = document.getElementById(fieldId);
-            field.addEventListener('blur', function() {
+            document.getElementById(fieldId).addEventListener('blur', function() {
                 this.value = normalizeDate(this.value);
             });
         });
 
-        // Empêcher la soumission du formulaire avec la touche Entrée
-        function preventEnterSubmit(event) {
-            if (event.keyCode === 13 || event.which === 13) {
-                event.preventDefault();
-                // Passer au champ suivant ou normaliser la date
-                if (event.target.type === 'text') {
-                    event.target.value = normalizeDate(event.target.value);
-                }
-                return false;
-            }
-            return true;
-        }
-
-        // Gérer la soumission du formulaire
-        function handleFormSubmit(event) {
-            event.preventDefault();
-            submitForm();
-            return false;
-        }
-
-        // Fonction pour convertir jj/mm/aa en date ISO (yyyy-mm-dd)
         function convertToISO(dateStr) {
             if (!dateStr) return '';
             const parts = dateStr.split('/');
@@ -773,29 +568,50 @@
             const jour = parts[0].padStart(2, '0');
             const mois = parts[1].padStart(2, '0');
             let annee = parts[2];
-            
-            // Si année sur 2 chiffres, ajouter 20 devant
-            if (annee.length === 2) {
-                annee = '20' + annee;
-            }
+            if (annee.length === 2) annee = '20' + annee;
             
             return `${annee}-${mois}-${jour}`;
         }
 
-        // Fonction pour convertir date ISO en jj/mm/aa
         function convertFromISO(dateISO) {
             if (!dateISO) return '';
             const parts = dateISO.split('-');
             if (parts.length !== 3) return dateISO;
             
-            const annee = parts[0].substring(2); // Prendre les 2 derniers chiffres
+            const annee = parts[0].substring(2);
             const mois = parts[1];
             const jour = parts[2];
             
             return `${jour}/${mois}/${annee}`;
         }
 
-        // Gestion du changement dans le menu déroulant
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            const jour = String(date.getDate()).padStart(2, '0');
+            const mois = String(date.getMonth() + 1).padStart(2, '0');
+            const annee = String(date.getFullYear()).substring(2);
+            return `${jour}/${mois}/${annee}`;
+        }
+
+        // ==================== GESTION FORMULAIRE ====================
+        function preventEnterSubmit(event) {
+            if (event.keyCode === 13 || event.which === 13) {
+                event.preventDefault();
+                if (event.target.type === 'text') {
+                    event.target.value = normalizeDate(event.target.value);
+                }
+                return false;
+            }
+            return true;
+        }
+
+        function handleFormSubmit(event) {
+            event.preventDefault();
+            submitForm();
+            return false;
+        }
+
         function handleQuiChange() {
             const select = document.getElementById('qui');
             const customGroup = document.getElementById('customQuiGroup');
@@ -808,7 +624,6 @@
             }
         }
 
-        // Mettre à jour le menu déroulant avec les destinataires sauvegardés
         function updateQuiSelect() {
             const select = document.getElementById('qui');
             const currentValue = select.value;
@@ -832,13 +647,9 @@
             }
         }
 
-        // Gestion du formulaire
         function submitForm() {
-            console.log('submitForm appelée - editingId:', editingId);
-            
             let quiValue = document.getElementById('qui').value;
             
-            // Si l'utilisateur a choisi d'ajouter un nouveau destinataire
             if (quiValue === 'custom') {
                 const customQui = document.getElementById('customQui').value.trim();
                 if (!customQui) {
@@ -847,7 +658,6 @@
                 }
                 quiValue = customQui;
                 
-                // Ajouter le nouveau destinataire à la liste s'il n'existe pas
                 if (!destinataires.includes(quiValue)) {
                     destinataires.push(quiValue);
                     localStorage.setItem('destinataires', JSON.stringify(destinataires));
@@ -855,13 +665,11 @@
                 }
             }
             
-            // Vérifier que quiValue n'est pas vide
             if (!quiValue) {
                 alert('Veuillez sélectionner un destinataire');
                 return;
             }
             
-            // Convertir les dates au format ISO pour le stockage
             const dateDemande = convertToISO(normalizeDate(document.getElementById('dateDemande').value));
             const dateDemandee = convertToISO(normalizeDate(document.getElementById('dateDemandee').value));
             const dateValidee = convertToISO(normalizeDate(document.getElementById('dateValidee').value));
@@ -877,15 +685,10 @@
                 notes: document.getElementById('notes').value
             };
 
-            console.log('Demande créée:', nouvelleDemande);
-
-            // Si c'est une modification
             if (editingId) {
-                console.log('Mode MODIFICATION');
                 const index = demandes.findIndex(d => d.id === editingId);
                 const ancienneDemande = demandes[index];
                 
-                // Vérifier si des données importantes ont changé
                 const donneesOntChange = (
                     ancienneDemande.projet !== nouvelleDemande.projet ||
                     ancienneDemande.dateDemande !== nouvelleDemande.dateDemande ||
@@ -895,27 +698,18 @@
                     ancienneDemande.livraison !== nouvelleDemande.livraison
                 );
                 
-                console.log('Données ont changé:', donneesOntChange);
-                
-                // Mettre à jour la demande
                 demandes[index] = nouvelleDemande;
                 
-                // Si des données importantes ont changé, vérifier si une alerte est nécessaire
                 if (donneesOntChange) {
                     const alerte = checkAlerteForDemande(nouvelleDemande);
-                    
                     if (alerte) {
-                        // Envoyer immédiatement la notification (sans limite pour les modifications)
                         showAlert(alerte.titre, alerte.message, alerte.projet, alerte.qui);
                     }
                 }
                 
                 editingId = null;
             } else {
-                console.log('Mode AJOUT');
-                // Nouvelle demande - pas de notification
                 demandes.push(nouvelleDemande);
-                console.log('Demande ajoutée. Total demandes:', demandes.length);
             }
 
             saveDemandes();
@@ -923,22 +717,6 @@
             renderDemandes();
         }
 
-        // Réinitialiser les notifications pour une demande modifiée
-        function resetNotificationPourModification(demandeId) {
-            const stored = localStorage.getItem('notificationsEnvoyees');
-            if (!stored) return;
-            
-            const data = JSON.parse(stored);
-            const today = new Date().toDateString();
-            
-            // Si c'est bien aujourd'hui, supprimer les notifications de cette demande
-            if (data.date === today && data.notifications && data.notifications[demandeId]) {
-                delete data.notifications[demandeId];
-                localStorage.setItem('notificationsEnvoyees', JSON.stringify(data));
-            }
-        }
-
-        // Réinitialiser le formulaire
         function resetForm() {
             document.getElementById('demandeForm').reset();
             document.getElementById('customQuiGroup').style.display = 'none';
@@ -947,59 +725,39 @@
             editingId = null;
         }
 
-        // Annuler la modification
         function cancelEdit() {
             resetForm();
         }
 
-        // Sauvegarde dans localStorage
         function saveDemandes() {
             localStorage.setItem('demandes', JSON.stringify(demandes));
         }
 
-        // Calcul du voyant (sans déclencher les alertes)
+        // ==================== CALCUL VOYANT ET ALERTES ====================
         function calculerVoyant(demande) {
             const aujourdHui = new Date();
             aujourdHui.setHours(0, 0, 0, 0);
 
-            // Si livraison cochée, voyant vert
-            if (demande.livraison) {
-                return 'vert';
-            }
+            if (demande.livraison) return 'vert';
+            if (!demande.dateValidee) return 'gris';
 
-            // Si pas de date validée
-            if (!demande.dateValidee) {
-                return 'gris';
-            }
-
-            // Si date validée existe
             const dateValidee = new Date(demande.dateValidee);
             dateValidee.setHours(0, 0, 0, 0);
 
-            // Si aujourd'hui > date validée : rouge
-            if (aujourdHui > dateValidee) {
-                return 'rouge';
-            }
-
+            if (aujourdHui > dateValidee) return 'rouge';
             return 'gris';
         }
 
-        // Vérifier si une demande nécessite une alerte
         function checkAlerteForDemande(demande) {
             const aujourdHui = new Date();
             aujourdHui.setHours(0, 0, 0, 0);
 
-            // Si livraison cochée, pas d'alerte
-            if (demande.livraison) {
-                return null;
-            }
+            if (demande.livraison) return null;
 
-            // Si pas de date validée
             if (!demande.dateValidee) {
                 const dateDemande = new Date(demande.dateDemande);
                 const diffJours = Math.floor((aujourdHui - dateDemande) / (1000 * 60 * 60 * 24));
                 
-                // Attendre 3 jours après la date de demande
                 if (diffJours >= 3) {
                     return {
                         type: '3jours',
@@ -1013,12 +771,10 @@
                 return null;
             }
 
-            // Si date validée existe
             const dateValidee = new Date(demande.dateValidee);
             dateValidee.setHours(0, 0, 0, 0);
             const diffJours = Math.floor((dateValidee - aujourdHui) / (1000 * 60 * 60 * 24));
 
-            // Si aujourd'hui > date validée : rouge avec alerte
             if (aujourdHui > dateValidee) {
                 return {
                     type: 'depassement',
@@ -1030,7 +786,6 @@
                 };
             }
 
-            // Si 7 jours ou moins avant la date validée : gris avec alerte
             if (diffJours <= 7 && diffJours >= 0) {
                 return {
                     type: '7jours',
@@ -1045,106 +800,138 @@
             return null;
         }
 
-        // Afficher une notification système Windows
+        // ==================== NOTIFICATIONS ====================
         async function showSystemNotification(title, message) {
-            if ('Notification' in window) {
-                // Vérifier et demander la permission si nécessaire
-                if (Notification.permission === 'default') {
-                    const granted = await demanderPermissionNotifications();
-                    if (!granted) return;
-                }
-                
-                if (Notification.permission === 'granted') {
-                    try {
-                        // Utiliser une notification simple sans icône SVG complexe
-                        const notification = new Notification(title, {
-                            body: message,
-                            // PAS d'icône pour éviter les erreurs avec file:///
-                            requireInteraction: true,
-                            silent: false,
-                            tag: 'demande-' + Date.now(),
-                            renotify: true,
-                            vibrate: [200, 100, 200],
-                            timestamp: Date.now()
-                        });
-                        
-                        // Focus sur la fenêtre quand on clique
-                        notification.onclick = function() {
-                            window.focus();
-                            this.close();
-                        };
-                        
-                        // Jouer un son
-                        try {
-                            const beep = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZUQ8PVank5ZxiGgo+ltPxzH8pBCl+zPLaizsIGGS67OihUxELTKXh8bllHAU2jdXzzn0sBCd8yfHajjwJFmm98+mjVBQNUqjl6KRVFApCm9zyt2gbBDKJ0/PMezAHIHO/8d6WRQsRXbTq66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZUQ8PVank5ZxiGgo+ltPxzH8pBCl+zPLaizsIGGS67OihUxELTKXh8bllHAU2jdXzzn0sBCd8yfHajjwJFmm98+mjVBQNUqjl6KRVFApCm9zyt2gbBDKJ0/PMezAHIHO/8d6WRQsRXbTq66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZUQ8PVank5ZxiGgo+ltPxzH8pBCl+zPLaizsIGGS67OihUxELTKXh8bllHAU2jdXzzn0sBCd8yfHajjwJFmm98+mjVBQNUqjl6KRVFApCm9zyt2gbBDKJ0/PMezAHIHO/8d6WRQsRXbTq66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZUQ8PVank5ZxiGgo+ltPxzH8pBCl+zPLaizsIGGS67OihUxELTKXh8bllHAU2jdXzzn0sBCd8yfHajjwJFmm98+mjVBQNUqjl6KRVFApCm9zyt2gbBDKJ0/PMezAHIHO/8d6WRQsRXbTq66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZUQ8PVank5ZxiGgo+ltPxzH8pBCl+zPLaizsIGGS67OihUxELTKXh8bllHAU2jdXzzn0sBCd8yfHajjwJFmm98+mjVBQNUqjl6KRVFApCm9zyt2gbBDKJ0/PMezAHIHO/8d6WRQsRXbTq66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZ');
-                            beep.volume = 0.3;
-                            beep.play().catch(() => {});
-                        } catch (e) {}
-                        
-                        console.log('✅ Notification Windows envoyée:', title);
-                        
-                    } catch (error) {
-                        console.error('❌ Erreur notification:', error);
-                        console.error('Détails:', error.message);
-                    }
-                } else if (Notification.permission === 'denied') {
-                    console.warn('⚠️ Notifications bloquées');
+            if ('Notification' in window && Notification.permission === 'granted') {
+                try {
+                    const notification = new Notification(title, {
+                        body: message,
+                        requireInteraction: true,
+                        silent: false,
+                        tag: 'demande-' + Date.now()
+                    });
+                    
+                    notification.onclick = function() {
+                        window.focus();
+                        this.close();
+                    };
+                } catch (error) {
+                    console.error('Erreur notification:', error);
                 }
             }
         }
 
-        // Afficher une alerte
         function showAlert(title, message, projet, qui) {
-            // Remplacer les noms de projet et qui par des versions en gras dans le HTML
             let formattedMessage = message;
-            if (projet) {
-                formattedMessage = formattedMessage.replace(projet, `<strong>${projet}</strong>`);
-            }
-            if (qui) {
-                formattedMessage = formattedMessage.replace(qui, `<strong>${qui}</strong>`);
-            }
+            if (projet) formattedMessage = formattedMessage.replace(projet, `<strong>${projet}</strong>`);
+            if (qui) formattedMessage = formattedMessage.replace(qui, `<strong>${qui}</strong>`);
             
             document.getElementById('modalHeader').textContent = title;
             document.getElementById('modalBody').innerHTML = formattedMessage;
             document.getElementById('alertModal').style.display = 'block';
             
-            // Notification système (sans HTML)
             showSystemNotification(title, message);
         }
 
-        // Fermer la modal
         function closeModal() {
             document.getElementById('alertModal').style.display = 'none';
         }
 
-        // Fermer la modal en cliquant à l'extérieur
         window.onclick = function(event) {
             const modal = document.getElementById('alertModal');
-            if (event.target === modal) {
-                closeModal();
+            if (event.target === modal) closeModal();
+        }
+
+        // ==================== SYSTÈME DE VÉRIFICATION QUOTIDIENNE ====================
+        function getNotificationsEnvoyees() {
+            const stored = localStorage.getItem('notificationsEnvoyees');
+            if (!stored) return {};
+            
+            const data = JSON.parse(stored);
+            const today = new Date().toDateString();
+            
+            if (data.date !== today) return {};
+            return data.notifications || {};
+        }
+
+        function saveNotificationEnvoyee(demandeId, type) {
+            const today = new Date().toDateString();
+            const notifications = getNotificationsEnvoyees();
+            
+            if (!notifications[demandeId]) notifications[demandeId] = [];
+            if (!notifications[demandeId].includes(type)) {
+                notifications[demandeId].push(type);
+            }
+            
+            localStorage.setItem('notificationsEnvoyees', JSON.stringify({
+                date: today,
+                notifications: notifications
+            }));
+        }
+
+        function dejaEnvoyee(demandeId, type) {
+            const notifications = getNotificationsEnvoyees();
+            return notifications[demandeId] && notifications[demandeId].includes(type);
+        }
+
+        function verifierEtEnvoyerAlertes() {
+            demandes.forEach(demande => {
+                const alerte = checkAlerteForDemande(demande);
+                if (alerte && !dejaEnvoyee(alerte.demandeId, alerte.type)) {
+                    showAlert(alerte.titre, alerte.message, alerte.projet, alerte.qui);
+                    saveNotificationEnvoyee(alerte.demandeId, alerte.type);
+                }
+            });
+        }
+
+        function getMillisecondsUntil9AM() {
+            const now = new Date();
+            const next9AM = new Date();
+            next9AM.setHours(9, 0, 0, 0);
+            
+            if (now >= next9AM) {
+                next9AM.setDate(next9AM.getDate() + 1);
+            }
+            
+            return next9AM - now;
+        }
+
+        function programmerVerificationQuotidienne() {
+            const delai = getMillisecondsUntil9AM();
+            
+            setTimeout(() => {
+                verifierEtEnvoyerAlertes();
+                setInterval(() => {
+                    verifierEtEnvoyerAlertes();
+                }, 24 * 60 * 60 * 1000);
+            }, delai);
+        }
+
+        function verificationInitiale() {
+            const lastCheck = localStorage.getItem('lastAlertCheck');
+            const today = new Date().toDateString();
+            
+            if (lastCheck !== today) {
+                verifierEtEnvoyerAlertes();
+                localStorage.setItem('lastAlertCheck', today);
             }
         }
 
-        // Fonction pour catégoriser une demande pour le tri
+        verificationInitiale();
+        programmerVerificationQuotidienne();
+
+        // ==================== TRI ET AFFICHAGE ====================
         function getCategorie(demande, aujourdHui) {
-            // 4. Livrée
             if (demande.livraison) return 4;
+            if (!demande.dateValidee) return 2;
             
-            // Si pas de date validée
-            if (!demande.dateValidee) return 2; // Sans date
-            
-            // Si date validée existe
             const dateValidee = new Date(demande.dateValidee);
             dateValidee.setHours(0, 0, 0, 0);
             
-            // 1. Dépassée
             if (dateValidee < aujourdHui) return 1;
-            
-            // 3. Avec date (pas encore dépassée)
             return 3;
         }
 
-        // Afficher les demandes
         function renderDemandes() {
             const container = document.getElementById('demandesList');
             
@@ -1159,29 +946,20 @@
                 return;
             }
 
-            // Trier les demandes selon la priorité
+            const aujourdHui = new Date();
+            aujourdHui.setHours(0, 0, 0, 0);
+
             const demandesSorted = [...demandes].sort((a, b) => {
-                const aujourdHui = new Date();
-                aujourdHui.setHours(0, 0, 0, 0);
-                
-                // Catégoriser les demandes
                 const categorieA = getCategorie(a, aujourdHui);
                 const categorieB = getCategorie(b, aujourdHui);
                 
-                // Ordre des catégories: depassee (1) < sansDate (2) < avecDate (3) < livree (4)
-                if (categorieA !== categorieB) {
-                    return categorieA - categorieB;
-                }
+                if (categorieA !== categorieB) return categorieA - categorieB;
                 
-                // Dans la même catégorie, trier par date
                 if (categorieA === 1 || categorieA === 3) {
-                    // Dépassées et avec date: ordre chronologique de date validée
                     return new Date(a.dateValidee) - new Date(b.dateValidee);
                 } else if (categorieA === 2) {
-                    // Sans date: ordre de date de demande
                     return new Date(a.dateDemande) - new Date(b.dateDemande);
                 } else {
-                    // Livrées: ordre de date validée (ou demande si pas de validée)
                     const dateA = a.dateValidee ? new Date(a.dateValidee) : new Date(a.dateDemande);
                     const dateB = b.dateValidee ? new Date(b.dateValidee) : new Date(b.dateDemande);
                     return dateA - dateB;
@@ -1191,14 +969,13 @@
             container.innerHTML = demandesSorted.map(demande => {
                 const voyant = calculerVoyant(demande);
                 const dateValideeText = demande.dateValidee ? formatDate(demande.dateValidee) : 'Non définie';
+                const livraisonText = demande.livraison ? '✅ Effectuée' : '⏳ En attente';
                 const notesHtml = demande.notes ? `
                     <div class="demande-notes">
                         <div class="demande-notes-label">📝 Notes :</div>
                         <div>${demande.notes}</div>
                     </div>
                 ` : '';
-                
-                // Ajouter le gyrophare si voyant rouge
                 const gyrophareHtml = voyant === 'rouge' ? '<span class="gyrophare">🚨</span>' : '';
                 
                 return `
@@ -1221,7 +998,7 @@
                             </div>
                             <div class="info-item">
                                 <div class="info-label">Livraison:</div>
-                                <div class="info-value">${demande.livraison ? '✅ Effectuée' : '⏳ En attente'}</div>
+                                <div class="info-value bold">${livraisonText}</div>
                             </div>
                             <div class="info-item">
                                 <div class="info-label">Date demandée:</div>
@@ -1229,7 +1006,7 @@
                             </div>
                             <div class="info-item">
                                 <div class="info-label">Date validée:</div>
-                                <div class="info-value">${dateValideeText}</div>
+                                <div class="info-value bold">${dateValideeText}</div>
                             </div>
                         </div>
                         ${notesHtml}
@@ -1242,17 +1019,6 @@
             }).join('');
         }
 
-        // Formater une date
-        function formatDate(dateString) {
-            if (!dateString) return '';
-            const date = new Date(dateString);
-            const jour = String(date.getDate()).padStart(2, '0');
-            const mois = String(date.getMonth() + 1).padStart(2, '0');
-            const annee = String(date.getFullYear()).substring(2); // 2 derniers chiffres
-            return `${jour}/${mois}/${annee}`;
-        }
-
-        // Modifier une demande
         function editDemande(id) {
             const demande = demandes.find(d => d.id === id);
             if (demande) {
@@ -1263,12 +1029,10 @@
                 document.getElementById('livraison').checked = demande.livraison;
                 document.getElementById('notes').value = demande.notes || '';
                 
-                // Gérer le menu déroulant
                 const quiSelect = document.getElementById('qui');
                 if (destinataires.includes(demande.qui)) {
                     quiSelect.value = demande.qui;
                 } else {
-                    // Si le destinataire n'est plus dans la liste, l'ajouter
                     if (!destinataires.includes(demande.qui)) {
                         destinataires.push(demande.qui);
                         localStorage.setItem('destinataires', JSON.stringify(destinataires));
@@ -1285,7 +1049,6 @@
             }
         }
 
-        // Supprimer une demande
         function deleteDemande(id) {
             if (confirm('Êtes-vous sûr de vouloir supprimer cette demande ?')) {
                 demandes = demandes.filter(d => d.id !== id);
@@ -1294,7 +1057,12 @@
             }
         }
 
-        // Initialisation
+        // ==================== IMPRESSION ====================
+        function imprimerListe() {
+            window.print();
+        }
+
+        // ==================== LANCEMENT ====================
         renderDemandes();
     </script>
 </body>
