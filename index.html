@@ -386,7 +386,7 @@
 
         @media print {
             body {
-                background: white;
+                background: white !important;
                 padding: 0;
             }
             .container {
@@ -394,28 +394,34 @@
             }
             .btn-print,
             .form-section,
-            .demande-actions {
+            .demande-actions,
+            .header > div {
                 display: none !important;
             }
             .main-content {
                 grid-template-columns: 1fr !important;
+                display: block !important;
             }
             .list-section {
-                max-height: none;
-                overflow: visible;
+                max-height: none !important;
+                overflow: visible !important;
                 padding: 20px;
             }
             .demande-card {
                 page-break-inside: avoid;
                 margin-bottom: 20px;
-                border: 1px solid #333;
+                border: 1px solid #333 !important;
             }
             .header {
-                background: #667eea;
-                color: white;
+                background: #667eea !important;
+                color: white !important;
                 padding: 20px;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .voyant {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
             }
         }
 
