@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nettoyage des données - Gestion des Demandes</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 0.95em;
+        }
+
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin-bottom: 30px;
+            border-radius: 5px;
+            color: #856404;
+        }
+
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        button {
+            padding: 18px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-warning {
+            background: #ff9800;
+            color: white;
+        }
+
+        .btn-info {
+            background: #2196F3;
+            color: white;
+        }
+
+        .btn-success {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .info-box {
+            background: #f0f0f0;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+            display: none;
+        }
+
+        .info-box.visible {
+            display: block;
+        }
+
+        .info-box h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .info-item {
+            padding: 10px 0;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .info-item:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .info-value {
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .success-msg {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 5px;
+            color: #155724;
+            display: none;
+        }
+
+        .success-msg.visible {
+            display: block;
+            animation: slideIn 0.3s;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗑️ Nettoyage des données</h1>
+        <p class="subtitle">Gérez les données stockées de votre application</p>
+
+        <div class="warning">
+            <strong>⚠️ IMPORTANT :</strong><br>
+            Ce fichier doit être ouvert depuis le <strong>même emplacement</strong> que votre application pour fonctionner :<br>
+            • Si votre appli est sur <strong>GitHub</strong> → uploadez ce fichier sur GitHub aussi<br>
+            • Si votre appli est en <strong>local</strong> → ouvrez ce fichier depuis le même dossier
+        </div>
+
+        <div class="button-group">
+            <button class="btn-info" onclick="afficherDonnees()">
+                👁️ <span>Voir les données actuelles</span>
+            </button>
+
+            <button class="btn-danger" onclick="supprimerTout()">
+                🗑️ <span>Supprimer TOUTES les demandes</span>
+            </button>
+
+            <button class="btn-warning" onclick="supprimerDestinataires()">
+                👥 <span>Supprimer les destinataires</span>
+            </button>
+
+            <button class="btn-warning" onclick="supprimerDates()">
+                📅 <span>Supprimer toutes les dates</span>
+            </button>
+
+            <button class="btn-info" onclick="reinitialiserNotifications()">
+                🔔 <span>Réinitialiser les notifications</span>
+            </button>
+
+            <button class="btn-success" onclick="exporterDonnees()">
+                💾 <span>Exporter les données (sauvegarde)</span>
+            </button>
+        </div>
+
+        <div id="infoBox" class="info-box"></div>
+        <div id="successMsg" class="success-msg"></div>
+    </div>
+
+    <script>
+        // ==================== AFFICHAGE DES DONNÉES ====================
+        function afficherDonnees() {
+            const demandes = JSON.parse(localStorage.getItem('demandes') || '[]');
+            const destinataires = JSON.parse(localStorage.getItem('destinataires') || '[]');
+            const notifs = localStorage.getItem('notificationsEnvoyees');
+            const lastCheck = localStorage.getItem('lastAlertCheck');
+
+            const infoBox = document.getElementById('infoBox');
+            infoBox.className = 'info-box visible';
+            
+            let demandesDetails = '';
+            if (demandes.length > 0) {
+                demandesDetails = demandes.map(d => 
+                    `<li><strong>${d.projet}</strong> (${d.qui}) - ${d.livraison ? '✅ Livrée' : '⏳ En cours'}</li>`
+                ).join('');
+            } else {
+                demandesDetails = '<li>Aucune demande</li>';
+            }
+
+            infoBox.innerHTML = `
+                <h3>📊 Données stockées :</h3>
+                <div class="info-item">
+                    <div class="info-label">Nombre de demandes :</div>
+                    <div class="info-value">${demandes.length}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Liste des demandes :</div>
+                    <div class="info-value">
+                        <ul style="margin-left: 20px; margin-top: 10px;">
+                            ${demandesDetails}
+                        </ul>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Destinataires enregistrés :</div>
+                    <div class="info-value">${destinataires.length > 0 ? destinataires.join(', ') : 'Aucun'}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Notifications actives :</div>
+                    <div class="info-value">${notifs ? 'Oui' : 'Non'}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Dernière vérification :</div>
+                    <div class="info-value">${lastCheck || 'Jamais'}</div>
+                </div>
+            `;
+        }
+
+        // ==================== SUPPRESSION COMPLÈTE ====================
+        function supprimerTout() {
+            if (confirm('⚠️ ATTENTION DANGER !\n\nCette action va SUPPRIMER DÉFINITIVEMENT :\n\n• Toutes vos demandes\n• Tous les destinataires\n• Toutes les notifications\n• Tout l\'historique\n\nCette action est IRRÉVERSIBLE !\n\nÊtes-vous ABSOLUMENT sûr de vouloir continuer ?')) {
+                if (confirm('Dernière confirmation :\n\nVoulez-vous vraiment TOUT effacer ?')) {
+                    localStorage.clear();
+                    afficherSucces('✅ Toutes les données ont été supprimées de façon permanente.');
+                    setTimeout(() => {
+                        document.getElementById('infoBox').className = 'info-box';
+                    }, 100);
+                }
+            }
+        }
+
+        // ==================== SUPPRESSION DES DESTINATAIRES ====================
+        function supprimerDestinataires() {
+            const destinataires = JSON.parse(localStorage.getItem('destinataires') || '[]');
+            
+            if (destinataires.length === 0) {
+                alert('ℹ️ Aucun destinataire à supprimer.');
+                return;
+            }
+
+            if (confirm(`Supprimer les ${destinataires.length} destinataire(s) suivant(s) ?\n\n${destinataires.join(', ')}\n\nLes demandes existantes garderont leurs destinataires.`)) {
+                localStorage.removeItem('destinataires');
+                afficherSucces('✅ Liste des destinataires supprimée !');
+                afficherDonnees();
+            }
+        }
+
+        // ==================== SUPPRESSION DES DATES ====================
+        function supprimerDates() {
+            const demandes = JSON.parse(localStorage.getItem('demandes') || '[]');
+            
+            if (demandes.length === 0) {
+                alert('ℹ️ Aucune demande pour supprimer les dates.');
+                return;
+            }
+
+            if (confirm(`⚠️ Supprimer toutes les dates de ${demandes.length} demande(s) ?\n\nLes projets et destinataires seront conservés.\nSeules les dates (demande, demandée, validée) seront effacées.`)) {
+                demandes.forEach(d => {
+                    d.dateDemande = '';
+                    d.dateDemandee = '';
+                    d.dateValidee = '';
+                });
+                localStorage.setItem('demandes', JSON.stringify(demandes));
+                afficherSucces('✅ Toutes les dates ont été supprimées !');
+                afficherDonnees();
+            }
+        }
+
+        // ==================== RÉINITIALISATION DES NOTIFICATIONS ====================
+        function reinitialiserNotifications() {
+            const notifs = localStorage.getItem('notificationsEnvoyees');
+            
+            if (!notifs) {
+                alert('ℹ️ Aucune notification à réinitialiser.');
+                return;
+            }
+
+            if (confirm('Réinitialiser l\'historique des notifications ?\n\nCela permettra de recevoir à nouveau toutes les alertes.')) {
+                localStorage.removeItem('notificationsEnvoyees');
+                localStorage.removeItem('lastAlertCheck');
+                afficherSucces('✅ Historique des notifications réinitialisé !');
+                afficherDonnees();
+            }
+        }
+
+        // ==================== EXPORTATION DES DONNÉES ====================
+        function exporterDonnees() {
+            const demandes = JSON.parse(localStorage.getItem('demandes') || '[]');
+            const destinataires = JSON.parse(localStorage.getItem('destinataires') || '[]');
+            
+            if (demandes.length === 0) {
+                alert('ℹ️ Aucune donnée à exporter.');
+                return;
+            }
+
+            const data = {
+                demandes: demandes,
+                destinataires: destinataires,
+                exportDate: new Date().toISOString(),
+                version: '1.0'
+            };
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `gestion_demandes_backup_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            afficherSucces('✅ Sauvegarde téléchargée !');
+        }
+
+        // ==================== AFFICHAGE MESSAGE SUCCÈS ====================
+        function afficherSucces(message) {
+            const successMsg = document.getElementById('successMsg');
+            successMsg.textContent = message;
+            successMsg.className = 'success-msg visible';
+            
+            setTimeout(() => {
+                successMsg.className = 'success-msg';
+            }, 5000);
+        }
+
+        // ==================== VÉRIFICATION AU CHARGEMENT ====================
+        window.onload = function() {
+            afficherDonnees();
+        };
+    </script>
+</body>
+</html>
