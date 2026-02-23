@@ -979,7 +979,7 @@
                 if (categorieA === 1 || categorieA === 3) {
                     return new Date(a.dateValidee) - new Date(b.dateValidee);
                 } else if (categorieA === 2) {
-                    return new Date(a.dateDemande) - new Date(b.dateDemande);
+                    return new Date(a.dateDemandee) - new Date(b.dateDemandee);
                 } else {
                     const dateA = a.dateValidee ? new Date(a.dateValidee) : new Date(a.dateDemande);
                     const dateB = b.dateValidee ? new Date(b.dateValidee) : new Date(b.dateDemande);
