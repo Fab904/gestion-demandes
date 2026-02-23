@@ -187,8 +187,8 @@
                 👥 <span>Supprimer les destinataires</span>
             </button>
 
-            <button class="btn-warning" onclick="supprimerDates()">
-                📅 <span>Supprimer toutes les dates</span>
+            <button class="btn-warning" onclick="viderAutocompletion()">
+                📝 <span>Vider les suggestions de dates</span>
             </button>
 
             <button class="btn-info" onclick="reinitialiserNotifications()">
@@ -282,25 +282,19 @@
             }
         }
 
-        // ==================== SUPPRESSION DES DATES ====================
-        function supprimerDates() {
-            const demandes = JSON.parse(localStorage.getItem('demandes') || '[]');
-            
-            if (demandes.length === 0) {
-                alert('ℹ️ Aucune demande pour supprimer les dates.');
-                return;
-            }
-
-            if (confirm(`⚠️ Supprimer toutes les dates de ${demandes.length} demande(s) ?\n\nLes projets et destinataires seront conservés.\nSeules les dates (demande, demandée, validée) seront effacées.`)) {
-                demandes.forEach(d => {
-                    d.dateDemande = '';
-                    d.dateDemandee = '';
-                    d.dateValidee = '';
-                });
-                localStorage.setItem('demandes', JSON.stringify(demandes));
-                afficherSucces('✅ Toutes les dates ont été supprimées !');
-                afficherDonnees();
-            }
+        // ==================== VIDER L'AUTO-COMPLÉTION ====================
+        function viderAutocompletion() {
+            alert(`📝 Pour vider les suggestions de dates du navigateur :\n\n` +
+                `DANS EDGE :\n` +
+                `1. Allez dans edge://settings/privacy\n` +
+                `2. Cliquez sur "Choisir les éléments à effacer"\n` +
+                `3. Cochez "Données de remplissage automatique"\n` +
+                `4. Cliquez sur "Effacer maintenant"\n\n` +
+                `OU PLUS RAPIDE :\n` +
+                `1. Appuyez sur Ctrl + Shift + Delete\n` +
+                `2. Cochez "Données de formulaire"\n` +
+                `3. Cliquez sur "Effacer maintenant"\n\n` +
+                `Les suggestions (03/02/26, 02/02/26) disparaîtront !`);
         }
 
         // ==================== RÉINITIALISATION DES NOTIFICATIONS ====================
